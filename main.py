@@ -69,13 +69,7 @@ def directory_exists(ftp, dir):
             return True
     return False
 
-def upload_file_to_ftp(ftp, file_path, filename, user_name, target_path):
-
-    chdir(ftp, user_name)
-    logging.debug(f"  changed dir {user_name}")
-    if target_path:
-        chdir(ftp, target_path)
-        logging.debug(f"  changed dir {target_path}")
+def upload_file_to_ftp(ftp, file_path, filename):
 
     with open(file_path, 'rb') as file:
         ftp.storbinary('STOR ' + filename, file)
@@ -131,6 +125,13 @@ def upload():
             ftp.login(username, password)
             logging.debug("  login successful")
 
+
+            chdir(ftp, user_name)
+            logging.debug(f"  changed dir {user_name}")
+            if target_folder:
+                chdir(ftp, target_folder)
+                logging.debug(f"  changed dir {target_folder}")
+
             for file in files:
                 try:
 
@@ -144,7 +145,7 @@ def upload():
 
                     file.save(filepath)
                     logging.debug("  saved")
-                    upload_file_to_ftp(ftp, filepath, file_name, user_name, target_folder)
+                    upload_file_to_ftp(ftp, filepath, file_name)
                     logging.debug("  uploaded")
 
                     msg += f"<li>{file_name}: Success"
