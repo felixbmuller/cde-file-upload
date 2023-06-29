@@ -7,7 +7,7 @@ import logging
 from flask import Flask, render_template, request, Response
 from werkzeug.utils import secure_filename
 
-from secret import FTP_HOST, FTP_PASSWORD, FTP_PORT, FTP_USERNAME
+from secret import FTP_HOST, FTP_PORT
 
 app = Flask(__name__)  
 
@@ -17,7 +17,19 @@ def check_auth(username, password):
     """This function is called to check if a username /
     password combination is valid.
     """
-    return username == FTP_USERNAME and password == FTP_PASSWORD
+    ftp = FTP()
+
+    try:
+        ftp.connect(FTP_HOST, FTP_PORT)
+        ftp.login(username, password)
+        ftp.quit()
+    except Exception as e:
+        ftp.quit()
+        return False
+    else:
+        return True
+
+
 
 def authenticate():
     """Sends a 401 response that enables basic auth"""
@@ -30,7 +42,15 @@ def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         auth = request.authorization
-        if not auth or not check_auth(auth.username, auth.password):
+
+        if auth:
+            username = auth.username
+            password = auth.password
+        else:
+            username = request.values.get("user", "")
+            password = request.values.get("password", "")
+        
+        if not check_auth(username, password):
             return authenticate()
         return f(*args, **kwargs)
     return decorated
@@ -73,8 +93,16 @@ def main():
 
 
 @app.route('/success', methods=['POST'])
+@requires_auth
 def upload():
     logging.debug("Upload received")
+
+    if request.authorization:
+        username = request.authorization.username
+        password = request.authorization.password
+    else:
+        username = request.values.get("user", "")
+        password = request.values.get("password", "")
 
     msg = "<h1>Uploaded Files</h1><ul>"
 
@@ -100,7 +128,7 @@ def upload():
             logging.debug("Logging into FTP server")
             ftp = FTP()
             ftp.connect(FTP_HOST, FTP_PORT)
-            ftp.login(FTP_USERNAME, FTP_PASSWORD)
+            ftp.login(username, password)
             logging.debug("  login successful")
 
             for file in files:
