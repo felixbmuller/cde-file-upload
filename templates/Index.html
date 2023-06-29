@@ -1,12 +1,23 @@
 <html>
 <head>
-	<title>upload the file : GFG</title>
+	<title>Upload Files</title>
 </head>
 <body>
+	<h1>Photo Gallery File Upload</h1>
+
+	<p>Upload one or multiple photos to the CdE photo gallery.</p>
+	
+	<p>You can specify your name and optionally one subfolder.</p> 
+	
+	<p>This web interface uploads pictures to the CdE FTP server and stores them as "Your_Name/Subfolder/Image.jpg". For more complicated setups, use the FTP upload. </p>
+
+
 	<form action = "/success" method = "post" enctype="multipart/form-data">
-		Target Folder <input type="text" name="folder" value="YourName/SubFolder"/>
+		Your Name: <input type="text" name="user" value="Your_Name"/>
         <br/>
-        Images to Upload <input type="file" name="files" multiple="true"/>
+		Subfolder: <input type="text" name="folder" value=""/> (optional)
+		<br/>
+        Images to Upload: <input type="file" name="files" multiple="true"/>
         <br/>
 		<input type = "submit" value="Upload">
 	</form>
