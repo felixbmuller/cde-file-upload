@@ -13,6 +13,7 @@ app = Flask(__name__)
 
 logging.basicConfig(filename='cde_file_upload.log', encoding='utf-8', level=logging.DEBUG)
 
+
 def check_auth(username, password):
     """This function is called to check if a username /
     password combination is valid.
@@ -30,13 +31,13 @@ def check_auth(username, password):
         return True
 
 
-
 def authenticate():
     """Sends a 401 response that enables basic auth"""
     return Response(
     'Could not verify your access level for that URL.\n'
     'You have to login with proper credentials', 401,
     {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
 
 def requires_auth(f):
     @wraps(f)
@@ -55,10 +56,12 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+
 def chdir(ftp, dir): 
     if directory_exists(ftp, dir) is False: # (or negate, whatever you prefer for readability)
         ftp.mkd(dir)
     ftp.cwd(dir)
+
 
 # Check if directory exists (in current location)
 def directory_exists(ftp, dir):
@@ -69,14 +72,13 @@ def directory_exists(ftp, dir):
             return True
     return False
 
+
 def upload_file_to_ftp(ftp, file_path, filename):
 
     with open(file_path, 'rb') as file:
         ftp.storbinary('STOR ' + filename, file)
 
     logging.debug("  wrote file")
-
-
 
   
 @app.route('/')
@@ -153,7 +155,6 @@ def upload():
                 except Exception as e:
                     logging.debug(f"exception {e.__class__}: {e}")
                     msg += f"<li>{file.filename}: {e.__class__.__name__}: {e}"
-
 
     except Exception as e:
 
