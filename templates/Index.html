@@ -1,25 +1,70 @@
 <html>
 <head>
-	<title>Upload Files</title>
+	<title>CdE Fotogalerie Dateiupload – {{ cwd }}</title>
 </head>
 <body>
-	<h1>Photo Gallery File Upload</h1>
+	<h1>Dateiupload zur CdE Fotogalerie</h1>
+    <p>Veranstaltung: {{ event }}</p>
 
-	<p>Upload one or multiple photos to the CdE photo gallery.</p>
-	
-	<p>You can specify your name and optionally one subfolder.</p> 
-	
-	<p>This web interface uploads pictures to the CdE FTP server and stores them as "Your_Name/Subfolder/Image.jpg". For more complicated setups, use the FTP upload. </p>
+    <h2>Aktueller Ordner: {{ cwd }}</h2>
 
+    {% if cwd == "/" %}
+    <h2>Hinweise zur Benutzung</h2>
+    <ul>
+        <li>Lege zunächst deinen persönlichen Ordner im Hauptverzeichnis nach dem Schema 'Vorname_Nachname' an.</li>
+        <li>Navigiere in deinen Ordner.</li>
+        <li>Lege dort beliebig viele thematische Unterordner an.</li>
+        <li>Lade jedes deiner Fotos in <bold>genau einem</bold> dieser Unterordner hoch.</li>
+        <li><bold>Über diese Seite können keine Ordner oder Fotos gelöscht werden.</bold> Wende dich hierfür an das Dokuteam.</li>
+        <li>Ebenso können hochgeladene Fotos über diese Seite nicht angesehen werden.</li>
+    </ul>
+    {% endif %}
 
-	<form action = "/success" method = "post" enctype="multipart/form-data">
-		Your Name: <input type="text" name="user" value="Your_Name"/>
+    <h2>Navigiere innerhalb des Dateisystems:</h2>
+    <ul>
+    {% for name, facts in content %}
+        {% if name == "." %}
+            {% continue %}
+        {% elif name == ".." %}
+            {% if cwd == "/" %}
+                {% continue %}
+            {% endif %}
+            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}">..</a></li>
+        {% elif facts["type"] == "dir"%}
+            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a></li>
+        {% else %}
+            <li>{{ name }}</li>
+        {% endif %}
+    {% endfor %}
+    </ul>
+
+    <h2>Unterordner anlegen</h2>
+    {% if cwd == "/" %}
+        <p>Das Namensschema ist 'Vorname_Nachname'</p>
+    {% endif %}
+    <form action="{{ url_for("create_directory") }}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="parent" value="{{ cwd }}"/>
+        Name des Unterordners: <input type="text" name="directory_name" value=""/>
         <br/>
-		Subfolder: <input type="text" name="folder" value=""/> (optional)
-		<br/>
-        Images to Upload: <input type="file" name="files" multiple="true"/>
-        <br/>
-		<input type = "submit" value="Upload">
+		<input type="submit" value="Unterordner anlegen">
 	</form>
+
+    {% if cwd != "/" %}
+        <h2>Bilder in diesen Ordner hochladen</h2>
+        <form action="{{ url_for("upload_files") }}" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="upload_directory" value="{{ cwd }}"/>
+            <input type="file" name="files" multiple="true"/>
+            <br/>
+            <input type="submit" value="Bilder hochladen">
+        </form>
+        {% if errors %}
+            <p>Beim Hochladen der Bilder sind folgende Fehler aufgetreten:</p>
+            <ul>
+                {% for filename, errorname, error in errors %}
+                <li>{{ filename }}: {{ errorname }}: {{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endif %}
 </body>
 </html>
