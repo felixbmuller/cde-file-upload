@@ -87,6 +87,16 @@ def upload_file(ftp: FTP, filepath: pathlib.Path):
 def index():
     return view_directory()
 
+def sort_directory_entries(entry):
+
+    type = entry[1]["type"]
+
+    if type == "pdir":
+        return 0
+    elif type == "dir":
+        return 1
+    else:
+        return 2
 
 @app.route('/view')
 @app.route('/view/')
@@ -105,6 +115,8 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     # retrieve the content of the directory
     try:
         content = list(ftp.mlsd(path=str(directory), facts=["type"]))
+        content = sorted(content, key=sort_directory_entries)
+
     except ftplib.all_errors as e:
         return Response(f"Fehler: {e}", status=400)
     ftp.quit()
@@ -115,6 +127,7 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
         "Index.html", **{"cwd": str(directory), "parent": str(parent), "content": content,
                          "errors": errors, "event": event})
 
+TEMPLATE_DIR_NAME = "Template"
 
 @app.route('/create', methods=['POST'])
 @requires_auth
@@ -127,6 +140,7 @@ def create_directory():
         return Response('Keinen Elternordner für das neue Verzeichnis angegeben.', status=400)
     if 'directory_name' not in request.values:
         return Response('Keinen Namen für das neue Verzeichnis angegeben.', status=400)
+    
     # create a pseudo absolute path to utilize pathlib
     parent = pathlib.Path(request.values["parent"])
     name = secure_filename(request.values["directory_name"])
@@ -137,11 +151,25 @@ def create_directory():
         ftp.cwd(str(parent))
     except ftplib.all_errors as e:
         return Response(f"Fehler: {e}", status=400)
-
+    
     new = parent / secure_filename(name)
     if new == parent:
         return Response(f"Fehler: Neuer Ordner gleicht Elternordner: {new}", status=400)
     ftp.mkd(str(new))
+    
+    if request.values["parent"] == "":
+        # Creating a folder at top-level -> clone template folder
+
+        template_subdirs = ftp.mlsd(TEMPLATE_DIR_NAME, facts=["type"])
+        template_subdirs = [dir 
+                            for dir, facts in template_subdirs 
+                            if (dir not in [".", ".."] and facts["type"] == "dir")]
+
+        ftp.cwd(str(new))
+
+        for s in template_subdirs:
+            ftp.mkd(s)
+    
     ftp.quit()
     return view_directory(str(new))
 
