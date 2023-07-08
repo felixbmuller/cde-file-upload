@@ -218,7 +218,7 @@ def upload_files():
                 logging.debug(f"exception {e.__class__}: {e}")
                 errors.append((file.filename, e.__class__.__name__, e))
     ftp.quit()
-    return view_directory(str(directory))
+    return view_directory(str(directory), errors=errors)
   
   
 if __name__ == '__main__':  
