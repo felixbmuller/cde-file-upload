@@ -172,17 +172,21 @@ def create_directory():
     ftp.mkd(str(new))
     
     if request.values["parent"] == "":
-        # Creating a folder at top-level -> clone template folder
+        try:
+            # Creating a folder at top-level -> clone template folder
 
-        template_subdirs = ftp.mlsd(TEMPLATE_DIR_NAME, facts=["type"])
-        template_subdirs = [dir 
-                            for dir, facts in template_subdirs 
-                            if (dir not in [".", ".."] and facts["type"] == "dir")]
+            template_subdirs = ftp.mlsd(TEMPLATE_DIR_NAME, facts=["type"])
+            template_subdirs = [dir 
+                                for dir, facts in template_subdirs 
+                                if (dir not in [".", ".."] and facts["type"] == "dir")]
 
-        ftp.cwd(str(new))
+            ftp.cwd(str(new))
 
-        for s in template_subdirs:
-            ftp.mkd(s)
+            for s in template_subdirs:
+                ftp.mkd(s)
+        except Exception as e:
+            # do not bother the user when the template folder does not exist, just don't clone it
+            logging.debug(f"failed to clone template: {e.__class__}: {e}")
     
     ftp.quit()
     return view_directory(str(new))
