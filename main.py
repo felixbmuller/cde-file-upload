@@ -140,7 +140,7 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     
     for dir, facts in content:
         if facts["type"] == "dir":
-            facts["elements"] = ftp.nlst(str(directory / dir)) # this is inplace
+            facts["elements"] = 0 #ftp.nlst(str(directory / dir)) # this is inplace
 
     ftp.quit()
 
