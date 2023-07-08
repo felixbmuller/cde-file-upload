@@ -140,8 +140,11 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     
     for dir, facts in content:
         if facts["type"] == "dir":
-            print(str(directory / dir))
-            facts["elements"] = ftp.nlst(str(directory / dir)) # this is inplace
+            try:
+                facts["elements"] = ftp.nlst(str(directory / dir)) # this is inplace
+            except:
+                facts["elements"] = 65536 # do not show as empty
+                logging.error(f"failed to retrieve element count for {directory / dir}: {e.__class__}: {e}")
 
     ftp.quit()
 
