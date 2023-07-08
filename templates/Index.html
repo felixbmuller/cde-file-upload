@@ -48,12 +48,7 @@
             {% endif %}
             <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}"><i>.. (zurück)</i></a></li>
         {% elif facts["type"] == "dir"%}
-            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a> 
-            {% if facts["elements"] == 0 %}
-            <span style="color: lightgray;"> (empty)</span>
-            {% endif %}
-            
-            </li>
+            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a></li>
         {% else %}
             <li>{{ name }}</li>
         {% endif %}

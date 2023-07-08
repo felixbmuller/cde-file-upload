@@ -132,21 +132,14 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     except ftplib.all_errors as e:
         return handle_exception(e)
     
+    ftp.quit()
 
     # Sort and filter entries
     content = sorted(content, key=sort_directory_entries)
     if directory == "/":
         content = [c for c in content if c[0] != TEMPLATE_DIR_NAME]
     
-    for dir, facts in content:
-        if facts["type"] == "dir":
-            try:
-                facts["elements"] = ftp.nlst(str(directory / dir)) # this is inplace
-            except Exception as e:
-                facts["elements"] = 65536 # do not show as empty
-                logging.error(f"failed to retrieve element count for {directory / dir}: {e.__class__}: {e}")
 
-    ftp.quit()
 
     parent = directory.parent
     # guess the connected event from the auth username
