@@ -29,7 +29,7 @@
             {% if cwd == "/" %}
                 {% continue %}
             {% endif %}
-            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}">..</a></li>
+            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}">(zurück)</a></li>
         {% elif facts["type"] == "dir"%}
             <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a></li>
         {% else %}
