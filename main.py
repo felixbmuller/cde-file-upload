@@ -137,6 +137,10 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
         "Index.html", **{"cwd": str(directory), "parent": str(parent), "content": content,
                          "errors": errors, "event": event, "template_dir_name": TEMPLATE_DIR_NAME})
 
+def process_name(name):
+    name = secure_filename(name)
+    name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    return name
 
 @app.route('/create', methods=['POST'])
 @requires_auth
@@ -152,7 +156,8 @@ def create_directory():
     
     # create a pseudo absolute path to utilize pathlib
     parent = pathlib.Path(request.values["parent"])
-    name = secure_filename(request.values["directory_name"])
+    name = process_name(request.values["directory_name"])
+
     ftp = get_ftp_connection()
 
     # check that the parent directory already exists
@@ -161,7 +166,7 @@ def create_directory():
     except ftplib.all_errors as e:
         return handle_exception(f"Fehler: {e}")
     
-    new = parent / secure_filename(name)
+    new = parent / name
     if new == parent:
         return handle_exception(f"Fehler: Neuer Ordner gleicht Elternordner: {new}")
     ftp.mkd(str(new))
