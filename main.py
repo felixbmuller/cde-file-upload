@@ -179,7 +179,7 @@ def create_directory():
     ftp.mkd(str(new))
     logging.debug("created directory " + str(new))
     
-    if request.values["parent"] == "":
+    if request.values["parent"] == "/":
         try:
             # Creating a folder at top-level -> clone template folder
 
