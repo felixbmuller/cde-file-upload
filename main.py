@@ -135,12 +135,12 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
 
     # Sort and filter entries
     content = sorted(content, key=sort_directory_entries)
-    if directory == "":
+    if directory == "/":
         content = [c for c in content if c[0] != TEMPLATE_DIR_NAME]
     
     for dir, facts in content:
         if facts["type"] == "dir":
-            facts["elements"] = ftp.nlst(directory / dir) # this is inplace
+            facts["elements"] = ftp.nlst(str(directory / dir)) # this is inplace
 
     
 
