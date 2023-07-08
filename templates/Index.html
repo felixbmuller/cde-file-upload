@@ -48,10 +48,9 @@
             {% endif %}
             <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}"><i>.. (zurück)</i></a></li>
         {% elif facts["type"] == "dir"%}
-            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a>
-                
+            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a> 
             {% if facts["elements"] == 0 %}
-            <div style="color: lightgray;"> (empty)</div>
+            <span style="color: lightgray;"> (empty)</span>
             {% endif %}
             
             </li>
@@ -61,7 +60,7 @@
     {% endfor %}
     </ul>
 
-    {% if cwd.count("/") <= 2 %}
+    {% if cwd.count("/") < 2 %}
     {# Do not allow the creating of new subfolders in subfolders #}
 
         <h2>Unterordner anlegen</h2>
