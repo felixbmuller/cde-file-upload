@@ -104,7 +104,7 @@ def sort_directory_entries(entry):
     
 def handle_exception(e, status=400):
     logging.info("Sent error message to user: " + str(e))
-    return render_template("Error.html", str(e)), status
+    return render_template("Error.html", msg=str(e)), status
 
 
 def process_name(name):
