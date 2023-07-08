@@ -100,6 +100,9 @@ def sort_directory_entries(entry):
         return 1
     else:
         return 2
+    
+def handle_exception(e, status=400):
+    return render_template("Error.html", str(e)), status
 
 @app.route('/view')
 @app.route('/view/')
@@ -119,7 +122,7 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     try:
         content = list(ftp.mlsd(path=str(directory), facts=["type"]))
     except ftplib.all_errors as e:
-        return Response(f"Fehler: {e}", status=400)
+        return handle_exception(e)
     ftp.quit()
 
     # Sort and filter entries
@@ -143,9 +146,9 @@ def create_directory():
     This requires that the parent directory of the new subdirectory does already exist.
     """
     if 'parent' not in request.values:
-        return Response('Keinen Elternordner für das neue Verzeichnis angegeben.', status=400)
+        return handle_exception('Keinen Elternordner für das neue Verzeichnis angegeben.')
     if 'directory_name' not in request.values:
-        return Response('Keinen Namen für das neue Verzeichnis angegeben.', status=400)
+        return handle_exception('Keinen Namen für das neue Verzeichnis angegeben.')
     
     # create a pseudo absolute path to utilize pathlib
     parent = pathlib.Path(request.values["parent"])
@@ -156,11 +159,11 @@ def create_directory():
     try:
         ftp.cwd(str(parent))
     except ftplib.all_errors as e:
-        return Response(f"Fehler: {e}", status=400)
+        return handle_exception(f"Fehler: {e}")
     
     new = parent / secure_filename(name)
     if new == parent:
-        return Response(f"Fehler: Neuer Ordner gleicht Elternordner: {new}", status=400)
+        return handle_exception(f"Fehler: Neuer Ordner gleicht Elternordner: {new}")
     ftp.mkd(str(new))
     
     if request.values["parent"] == "":
@@ -188,9 +191,9 @@ def upload_files():
     This requires that the upload directory does already exist.
     """
     if not request.files.get("files"):
-        return Response('Keine Dateien zum Hochladen ausgewählt.', status=400)
+        return handle_exception('Keine Dateien zum Hochladen ausgewählt.', status=400)
     if 'upload_directory' not in request.values:
-        return Response('Keinen Zielordner zum Hochladen angegeben.', status=400)
+        return handle_exception('Keinen Zielordner zum Hochladen angegeben.', status=400)
     # create a pseudo absolute path to utilize pathlib
     directory = pathlib.Path(request.values["upload_directory"])
     ftp = get_ftp_connection()
@@ -199,7 +202,7 @@ def upload_files():
     try:
         ftp.cwd(str(directory))
     except ftplib.all_errors as e:
-        return Response(f"Fehler: {e}", status=400)
+        return handle_exception(f"Fehler: {e}", status=400)
 
     errors = []
     with tempfile.TemporaryDirectory() as upload_dir:
