@@ -115,17 +115,21 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     # retrieve the content of the directory
     try:
         content = list(ftp.mlsd(path=str(directory), facts=["type"]))
-        content = sorted(content, key=sort_directory_entries)
-
     except ftplib.all_errors as e:
         return Response(f"Fehler: {e}", status=400)
     ftp.quit()
+
+    # Sort and filter entries
+    content = sorted(content, key=sort_directory_entries)
+    if directory == "":
+        content = [c for c in content if c[0] != TEMPLATE_DIR_NAME]
+
     parent = directory.parent
     # guess the connected event from the auth username
     event, _ = get_credentials()
     return render_template(
         "Index.html", **{"cwd": str(directory), "parent": str(parent), "content": content,
-                         "errors": errors, "event": event})
+                         "errors": errors, "event": event, "template_dir_name": TEMPLATE_DIR_NAME})
 
 TEMPLATE_DIR_NAME = "Template"
 

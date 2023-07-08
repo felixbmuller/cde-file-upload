@@ -25,7 +25,7 @@
     {% for name, facts in content %}
         {% if name == "." %}
             {% continue %}
-        {% elif name == ".." %}
+        {% elif name == ".." or name == template_dir_name %}
             {% if cwd == "/" %}
                 {% continue %}
             {% endif %}
