@@ -143,7 +143,7 @@ def create_directory():
         return Response(f"Fehler: Neuer Ordner gleicht Elternordner: {new}", status=400)
     ftp.mkd(str(new))
     ftp.quit()
-    return view_directory(str(parent))
+    return view_directory(str(new))
 
 
 @app.route('/upload', methods=['POST'])
