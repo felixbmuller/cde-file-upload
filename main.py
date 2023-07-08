@@ -131,7 +131,7 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
         content = list(ftp.mlsd(path=str(directory), facts=["type"]))
     except ftplib.all_errors as e:
         return handle_exception(e)
-    ftp.quit()
+    
 
     # Sort and filter entries
     content = sorted(content, key=sort_directory_entries)
@@ -142,7 +142,7 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
         if facts["type"] == "dir":
             facts["elements"] = ftp.nlst(str(directory / dir)) # this is inplace
 
-    
+    ftp.quit()
 
     parent = directory.parent
     # guess the connected event from the auth username
