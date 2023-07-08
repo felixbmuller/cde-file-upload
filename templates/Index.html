@@ -8,15 +8,33 @@
 
     <h2>Aktueller Ordner: {{ cwd }}</h2>
 
-    {% if cwd == "/" %}
     <h2>Hinweise zur Benutzung</h2>
+    {% if cwd == "/" %}
+    {# Everything here is displayed at top-level #}
+
+    <p>Wähle deinen Namen aus der Liste aus oder gib ihn unten ein</p>
+
+    {% elif cwd.count("/") == 1 %}
+    {# Everything here is displayed at the level of sub-folders #}
     <ul>
-        <li>Lege zunächst deinen persönlichen Ordner im Hauptverzeichnis nach dem Schema 'Vorname_Nachname' an.</li>
-        <li>Navigiere in deinen Ordner.</li>
-        <li>Lege dort beliebig viele thematische Unterordner an.</li>
-        <li>Lade jedes deiner Fotos in <bold>genau einem</bold> dieser Unterordner hoch.</li>
+        <li>Wähle einen vorhanden Unterordner aus oder erstelle einen Neuen.</li>
+        <li>Wenn du keine Unterordner anlegen möchtest, kannst du Bilder auch direkt hier hochladen.</li>
+        <li>Lade <bold>maximal 20 Bilder</bold> auf einmal hoch</li>
+        <li>Nach dem Abschicken lädt die Seite bis alle Bilder verarbeitet sind, das kann einen Moment dauern.</li>
+        <li>Du kannst mehrmals in denselben oder unterschiedliche Ordner hochladen. Du kannst frei durch die Ordnerstruktur navigieren. </li>
         <li><bold>Über diese Seite können keine Ordner oder Fotos gelöscht werden.</bold> Wende dich hierfür an das Dokuteam.</li>
         <li>Ebenso können hochgeladene Fotos über diese Seite nicht angesehen werden.</li>
+    </ul>
+
+    {% else %}
+    {# Everything here is displayed when in a subfolder #}
+
+    <ul>
+        <li>Lade hier deine Bilder hoch</li>
+        <li>Lade maximal 20 Bilder auf einmal hoch</li>
+        <li>Du kannst mehrmals in denselben oder unterschiedliche Ordner hochladen. Du kannst frei durch die Ordnerstruktur navigieren. </li>
+        <li><bold>Über diese Seite können keine Ordner oder Fotos gelöscht werden.</bold> Wende dich hierfür an das Dokuteam.</li>
+        <li>Ebenso können hochgeladene Fotos über diese Seite nicht angesehen werden, du siehst nur die Dateinamen.</li>
     </ul>
     {% endif %}
 
@@ -25,11 +43,11 @@
     {% for name, facts in content %}
         {% if name == "." %}
             {% continue %}
-        {% elif name == ".." %}
+        {% elif name == ".." or name == template_dir_name %}
             {% if cwd == "/" %}
                 {% continue %}
             {% endif %}
-            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}">..</a></li>
+            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}"><i>.. (zurück)</i></a></li>
         {% elif facts["type"] == "dir"%}
             <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a></li>
         {% else %}
@@ -38,16 +56,30 @@
     {% endfor %}
     </ul>
 
-    <h2>Unterordner anlegen</h2>
-    {% if cwd == "/" %}
-        <p>Das Namensschema ist 'Vorname_Nachname'</p>
+    {% if cwd.count("/") < 2 %}
+    {# Do not allow the creating of new subfolders in subfolders #}
+
+        <h2>Unterordner anlegen</h2>
+        <p>
+        {% if cwd == "/" %}
+            Das Namensschema ist 'Vorname_Nachname'. 
+        {% endif %}
+        Leerzeichen und Umlaute werden automatisch ersetzt.
+        </p>
+        <form action="{{ url_for("create_directory") }}" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="parent" value="{{ cwd }}"/>
+            {% if cwd == "/" %}
+            Dein Name:
+            {% else %}
+            Name des Unterordners:
+            {% endif %}
+            <br/>
+            <input type="text" name="directory_name" value=""/>
+            <br/>
+            <input type="submit" value="Unterordner anlegen">
+        </form>
+
     {% endif %}
-    <form action="{{ url_for("create_directory") }}" method="post" enctype="multipart/form-data">
-        <input type="hidden" name="parent" value="{{ cwd }}"/>
-        Name des Unterordners: <input type="text" name="directory_name" value=""/>
-        <br/>
-		<input type="submit" value="Unterordner anlegen">
-	</form>
 
     {% if cwd != "/" %}
         <h2>Bilder in diesen Ordner hochladen</h2>
