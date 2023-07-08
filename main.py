@@ -96,11 +96,11 @@ def sort_directory_entries(entry):
     type = entry[1]["type"]
 
     if type == "pdir":
-        return 0
+        return 0, entry[0]
     elif type == "dir":
-        return 1
+        return 1, entry[0]
     else:
-        return 2
+        return 2, entry[0]
     
 def handle_exception(e, status=400):
     logging.info("Sent error message to user: " + str(e))
