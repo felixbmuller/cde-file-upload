@@ -38,6 +38,7 @@ def check_auth(username: str, password: str) -> bool:
         ftp.quit()
     except Exception:
         ftp.quit()
+        logging.info(f"Incorrect loging attempt for {username}")
         return False
     else:
         return True
@@ -102,7 +103,14 @@ def sort_directory_entries(entry):
         return 2
     
 def handle_exception(e, status=400):
+    logging.info("Sent error message to user: " + str(e))
     return render_template("Error.html", str(e)), status
+
+
+def process_name(name):
+    name = secure_filename(name)
+    name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    return name
 
 @app.route('/view')
 @app.route('/view/')
@@ -143,10 +151,6 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
         "Index.html", **{"cwd": str(directory), "parent": str(parent), "content": content,
                          "errors": errors, "event": event, "template_dir_name": TEMPLATE_DIR_NAME})
 
-def process_name(name):
-    name = secure_filename(name)
-    name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-    return name
 
 @app.route('/create', methods=['POST'])
 @requires_auth
@@ -176,6 +180,7 @@ def create_directory():
     if new == parent:
         return handle_exception(f"Fehler: Neuer Ordner gleicht Elternordner: {new}")
     ftp.mkd(str(new))
+    logging.debug("created directory " + str(new))
     
     if request.values["parent"] == "":
         try:
@@ -186,13 +191,11 @@ def create_directory():
                                 for dir, facts in template_subdirs 
                                 if (dir not in [".", ".."] and facts["type"] == "dir")]
 
-            ftp.cwd(str(new))
-
             for s in template_subdirs:
-                ftp.mkd(s)
+                ftp.mkd(str(new / s))
         except Exception as e:
             # do not bother the user when the template folder does not exist, just don't clone it
-            logging.debug(f"failed to clone template: {e.__class__}: {e}")
+            logging.error(f"failed to clone template: {e.__class__}: {e}")
     
     ftp.quit()
     return view_directory(str(new))
