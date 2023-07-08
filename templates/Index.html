@@ -46,39 +46,45 @@
             {% if cwd == "/" %}
                 {% continue %}
             {% endif %}
-            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}"><i>(zurück)</i></a></li>
+            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}"><i>.. (zurück)</i></a></li>
         {% elif facts["type"] == "dir"%}
-            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a>({{ facts["elements"]}} elements)</li>
+            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a>
+                
+            {% if facts["elements"] == 0 %}
+            <div style="color: lightgray;"> (empty)</div>
+            {% endif %}
+            
+            </li>
         {% else %}
             <li>{{ name }}</li>
         {% endif %}
     {% endfor %}
     </ul>
 
-    {# if cwd.count("/") > 1 #}
+    {% if cwd.count("/") <= 2 %}
     {# Do not allow the creating of new subfolders in subfolders #}
 
         <h2>Unterordner anlegen</h2>
         <p>
         {% if cwd == "/" %}
             Das Namensschema ist 'Vorname_Nachname'. 
-        {% endif %}>
+        {% endif %}
         Leerzeichen und Umlaute werden automatisch ersetzt.
         </p>
         <form action="{{ url_for("create_directory") }}" method="post" enctype="multipart/form-data">
             <input type="hidden" name="parent" value="{{ cwd }}"/>
             {% if cwd == "/" %}
             Dein Name:
-            {% else %}>
+            {% else %}
             Name des Unterordners:
-            {% endif %}>
+            {% endif %}
             <br/>
             <input type="text" name="directory_name" value=""/>
             <br/>
             <input type="submit" value="Unterordner anlegen">
         </form>
 
-    {# endif #}
+    {% endif %}
 
     {% if cwd != "/" %}
         <h2>Bilder in diesen Ordner hochladen</h2>
