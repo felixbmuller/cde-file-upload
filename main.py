@@ -1,5 +1,6 @@
 from functools import wraps
 from ftplib import FTP
+import ftplib
 import tempfile
 import logging
 from typing import Tuple, List
@@ -11,7 +12,8 @@ from werkzeug.datastructures.file_storage import FileStorage
 
 from secret import FTP_HOST, FTP_PORT
 
-app = Flask(__name__)  
+app = Flask(__name__)
+app.jinja_env.add_extension("jinja2.ext.loopcontrols")
 
 logging.basicConfig(filename='cde_file_upload.log', encoding='utf-8', level=logging.DEBUG)
 
@@ -56,21 +58,11 @@ def requires_auth(f):
     return decorated
 
 
-def is_directory(ftp: FTP, directory: str):
-    """Check if this directory exists in the current ftp folder."""
-    filelist: List[str] = []
-    # execute 'ls -l' on the ftp server
-    ftp.retrlines('LIST', filelist.append)
-    for f in filelist:
-        # one line looks like
-        # drwxrwxr-x 2 2023_PfingstAkademie akademien 0 Jun 7 22:45 DirectoryName
-        bits = f.split()[0]
-        name = f.split()[-1]
-        if name == directory:
-            if bits.upper().startswith('D'):
-                return True
-            raise ValueError(f"Can not create directory {name}: File exists.")
-    return False
+def get_ftp_connection() -> ftplib.FTP:
+    ftp = FTP()
+    ftp.connect(FTP_HOST, FTP_PORT)
+    ftp.login(*get_credentials())
+    return ftp
 
 
 def store_file(directory: pathlib.Path, file: FileStorage) -> pathlib.Path:
@@ -92,77 +84,104 @@ def upload_file(ftp: FTP, filepath: pathlib.Path):
   
 @app.route('/')
 @requires_auth
-def main():  
-    logging.debug("/ endpoint")
-    return render_template("Index.html")
+def index():
+    return view_directory()
 
 
-@app.route('/success', methods=['POST'])
+@app.route('/view')
+@app.route('/view/')
+@app.route('/view/<path:directory>')
 @requires_auth
-def upload():
-    logging.debug("Upload received")
+def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = None):
+    """View the content of a directory on the ftp server.
 
-    msg = "<h1>Uploaded Files</h1><ul>"
-
+    :param directory: The path to the directory which shall be displayed.
+    :param errors: A list of errors which may appear during the file upload.
+    """
+    errors = errors or []
+    # create a pseudo absolute path to utilize pathlib
+    directory = pathlib.Path("/" + directory.lstrip("/"))
+    ftp = get_ftp_connection()
+    # retrieve the content of the directory
     try:
-        user_name = secure_filename(request.values["user"])
-        if target_folder := request.values.get("folder", ""):
-            target_folder = secure_filename(target_folder)
-
-        logging.debug(f"target_folder {target_folder}")
-        logging.debug(f"user name {user_name}")
-
-        with tempfile.TemporaryDirectory() as upload_dir:
-
-            if 'files' not in request.files:
-                return 'No files part of the request', 400
-
-            files: List[FileStorage] = request.files.getlist('files')
-
-            logging.debug("Logging into FTP server")
-            ftp = FTP()
-            ftp.connect(FTP_HOST, FTP_PORT)
-            ftp.login(*get_credentials())
-            logging.debug("  login successful")
-
-            # create personal directory for current user
-            if not is_directory(ftp, user_name):
-                ftp.mkd(user_name)
-            ftp.cwd(user_name)
-            logging.debug(f"  changed dir {user_name}")
-
-            # create subdirectory in personal user directory
-            if target_folder:
-                if not is_directory(ftp, target_folder):
-                    ftp.mkd(target_folder)
-                ftp.cwd(target_folder)
-                logging.debug(f"  changed dir {target_folder}")
-
-            for file in files:
-                try:
-                    logging.debug(f"Processing file {file.filename}")
-                    if not file.filename:
-                        raise ValueError('One or more files do not have a name (probably uploaded empty file)')
-
-                    path = store_file(pathlib.Path(upload_dir), file)
-                    upload_file(ftp, path)
-
-                    msg += f"<li>{file.filename}: Success"
-                except Exception as e:
-                    logging.debug(f"exception {e.__class__}: {e}")
-                    msg += f"<li>{file.filename}: {e.__class__.__name__}: {e}"
-
-    except Exception as e:
-        logging.debug(f"{e.__class__}: {e}")
-        return f"Something went wrong<br> {e.__class__}: {e}", 500
-
-    msg += "</ul>"
-
+        content = list(ftp.mlsd(path=str(directory), facts=["type"]))
+    except ftplib.all_errors as e:
+        return Response(f"Fehler: {e}", status=400)
     ftp.quit()
+    parent = directory.parent
+    # guess the connected event from the auth username
+    event, _ = get_credentials()
+    return render_template(
+        "Index.html", **{"cwd": str(directory), "parent": str(parent), "content": content,
+                         "errors": errors, "event": event})
 
-    logging.debug("success")
 
-    return msg, 200
+@app.route('/create', methods=['POST'])
+@requires_auth
+def create_directory():
+    """Create a new directory on the ftp server.
+
+    This requires that the parent directory of the new subdirectory does already exist.
+    """
+    if 'parent' not in request.values:
+        return Response('Keinen Elternordner für das neue Verzeichnis angegeben.', status=400)
+    if 'directory_name' not in request.values:
+        return Response('Keinen Namen für das neue Verzeichnis angegeben.', status=400)
+    # create a pseudo absolute path to utilize pathlib
+    parent = pathlib.Path(request.values["parent"])
+    name = secure_filename(request.values["directory_name"])
+    ftp = get_ftp_connection()
+
+    # check that the parent directory already exists
+    try:
+        ftp.cwd(str(parent))
+    except ftplib.all_errors as e:
+        return Response(f"Fehler: {e}", status=400)
+
+    new = parent / secure_filename(name)
+    if new == parent:
+        return Response(f"Fehler: Neuer Ordner gleicht Elternordner: {new}", status=400)
+    ftp.mkd(str(new))
+    ftp.quit()
+    return view_directory(str(parent))
+
+
+@app.route('/upload', methods=['POST'])
+@requires_auth
+def upload_files():
+    """Upload files to the ftp server.
+
+    This requires that the upload directory does already exist.
+    """
+    if not request.files.get("files"):
+        return Response('Keine Dateien zum Hochladen ausgewählt.', status=400)
+    if 'upload_directory' not in request.values:
+        return Response('Keinen Zielordner zum Hochladen angegeben.', status=400)
+    # create a pseudo absolute path to utilize pathlib
+    directory = pathlib.Path(request.values["upload_directory"])
+    ftp = get_ftp_connection()
+
+    # check that the upload directory already exists
+    try:
+        ftp.cwd(str(directory))
+    except ftplib.all_errors as e:
+        return Response(f"Fehler: {e}", status=400)
+
+    errors = []
+    with tempfile.TemporaryDirectory() as upload_dir:
+        files: List[FileStorage] = request.files.getlist('files')
+        for file in files:
+            try:
+                logging.debug(f"Processing file {file.filename}")
+                if not file.filename:
+                    raise ValueError('One or more files do not have a name (probably uploaded empty file)')
+                local_path = store_file(pathlib.Path(upload_dir), file)
+                upload_file(ftp, local_path)
+            except Exception as e:
+                logging.debug(f"exception {e.__class__}: {e}")
+                errors.append((file.filename, e.__class__.__name__, e))
+    ftp.quit()
+    return view_directory(str(directory))
   
   
 if __name__ == '__main__':  
