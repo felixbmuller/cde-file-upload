@@ -12,6 +12,9 @@ from werkzeug.datastructures.file_storage import FileStorage
 
 from secret import FTP_HOST, FTP_PORT
 
+
+TEMPLATE_DIR_NAME = "Template"
+
 app = Flask(__name__)
 app.jinja_env.add_extension("jinja2.ext.loopcontrols")
 
@@ -131,7 +134,6 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
         "Index.html", **{"cwd": str(directory), "parent": str(parent), "content": content,
                          "errors": errors, "event": event, "template_dir_name": TEMPLATE_DIR_NAME})
 
-TEMPLATE_DIR_NAME = "Template"
 
 @app.route('/create', methods=['POST'])
 @requires_auth
