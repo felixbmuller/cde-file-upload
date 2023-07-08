@@ -46,16 +46,16 @@
             {% if cwd == "/" %}
                 {% continue %}
             {% endif %}
-            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}">(zurück)</a></li>
+            <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}"><i>(zurück)</i></a></li>
         {% elif facts["type"] == "dir"%}
-            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }} ({{ facts["elements"]}} elements)</a></li>
+            <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a>({{ facts["elements"]}} elements)</li>
         {% else %}
             <li>{{ name }}</li>
         {% endif %}
     {% endfor %}
     </ul>
 
-    {% if cwd.count("/") > 1 %}
+    {# if cwd.count("/") > 1 #}
     {# Do not allow the creating of new subfolders in subfolders #}
 
         <h2>Unterordner anlegen</h2>
@@ -78,7 +78,7 @@
             <input type="submit" value="Unterordner anlegen">
         </form>
 
-    {% endif %}
+    {# endif #}
 
     {% if cwd != "/" %}
         <h2>Bilder in diesen Ordner hochladen</h2>
