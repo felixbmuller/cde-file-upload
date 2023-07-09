@@ -1,3 +1,4 @@
+import string
 from functools import wraps
 from ftplib import FTP
 import ftplib
@@ -104,10 +105,14 @@ def handle_exception(e, status=400):
     return render_template("Error.html", msg=str(e)), status
 
 
-def process_name(name):
+def normalize_filename(name: str) -> str:
+    """Normalize a file/folder name before creating it on the ftp."""
+    # strips exploitable characters and convert the name to ASCII
     name = secure_filename(name)
-    name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    # replace all ASCII whitespace by _
+    name.replace(string.whitespace, "_")
     return name
+
 
 @app.route('/view')
 @app.route('/view/')
@@ -160,7 +165,9 @@ def create_directory():
     
     # create a pseudo absolute path to utilize pathlib
     parent = pathlib.Path(request.values["parent"])
-    name = process_name(request.values["directory_name"])
+    if not parent.is_absolute():
+        return handle_exception('Pfad des Elternordners muss absolut sein.')
+    name = normalize_filename(request.values["directory_name"])
 
     ftp = get_ftp_connection()
 
