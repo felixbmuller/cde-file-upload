@@ -43,11 +43,13 @@
     {% for name, facts in content %}
         {% if name == "." %}
             {% continue %}
-        {% elif name == ".." or name == template_dir_name %}
+        {% elif name == ".." %}
             {% if cwd == "/" %}
                 {% continue %}
             {% endif %}
             <li><a href="{{ url_for("view_directory", directory=parent.lstrip("/")) }}"><i>.. (zurück)</i></a></li>
+        {% elif cwd == "/" and name == template_dir_name %}
+            {% continue %}
         {% elif facts["type"] == "dir"%}
             <li><a href="{{ url_for("view_directory", directory=(cwd+"/").lstrip("/")+name) }}">{{ name }}</a></li>
         {% else %}

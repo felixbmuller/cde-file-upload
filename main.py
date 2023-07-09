@@ -14,7 +14,8 @@ from werkzeug.datastructures.file_storage import FileStorage
 from secret import FTP_HOST, FTP_PORT
 
 
-TEMPLATE_DIR_NAME = "Template"
+TEMPLATE_DIR = pathlib.Path("/Template")
+TEMPLATE_DIR_NAME = TEMPLATE_DIR.name
 
 app = Flask(__name__)
 app.jinja_env.add_extension("jinja2.ext.loopcontrols")
@@ -133,15 +134,13 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
         content = list(ftp.mlsd(path=str(directory), facts=["type"]))
     except ftplib.all_errors as e:
         return handle_exception(e)
-    
+
     ftp.quit()
 
     # Sort and filter entries
     content = sorted(content, key=sort_directory_entries)
     if directory == "/":
-        content = [c for c in content if c[0] != TEMPLATE_DIR_NAME]
-    
-
+        content = [(name, facts) for name, facts in content if name != TEMPLATE_DIR_NAME]
 
     parent = directory.parent
     # guess the connected event from the auth username
@@ -186,14 +185,11 @@ def create_directory():
     if request.values["parent"] == "/":
         try:
             # Creating a folder at top-level -> clone template folder
-
-            template_subdirs = ftp.mlsd(TEMPLATE_DIR_NAME, facts=["type"])
-            template_subdirs = [dir 
-                                for dir, facts in template_subdirs 
-                                if (dir not in [".", ".."] and facts["type"] == "dir")]
-
-            for s in template_subdirs:
-                ftp.mkd(str(new / s))
+            subdir_names = [
+                subdir_name for subdir_name, facts in ftp.mlsd(str(TEMPLATE_DIR), facts=["type"])
+                if subdir_name not in [".", ".."] and facts["type"] == "dir"]
+            for subdir_name in subdir_names:
+                ftp.mkd(str(new / subdir_name))
         except Exception as e:
             # do not bother the user when the template folder does not exist, just don't clone it
             logging.error(f"failed to clone template: {e.__class__}: {e}")
