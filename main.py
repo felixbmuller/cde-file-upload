@@ -3,7 +3,7 @@ from ftplib import FTP
 import ftplib
 import tempfile
 import logging
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 import pathlib
 
 from flask import Flask, render_template, request, Response
@@ -91,17 +91,14 @@ def upload_file(ftp: FTP, filepath: pathlib.Path):
 def index():
     return view_directory()
 
-def sort_directory_entries(entry):
 
-    type = entry[1]["type"]
+def sort_directory_entries(entry: Tuple[str, Dict[str, str]]):
+    """Key function to sort a directory entry as returned by ftp.mlsd."""
+    name, facts = entry
+    order = {"pdir": 1, "dir": 2}
+    return order.get(facts["type"], 3), name
 
-    if type == "pdir":
-        return 0, entry[0]
-    elif type == "dir":
-        return 1, entry[0]
-    else:
-        return 2, entry[0]
-    
+
 def handle_exception(e, status=400):
     logging.info("Sent error message to user: " + str(e))
     return render_template("Error.html", msg=str(e)), status
