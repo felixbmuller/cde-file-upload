@@ -46,7 +46,7 @@ def check_auth(username: str, password: str) -> bool:
         return True
 
 
-def authenticate():
+def authenticate() -> Response:
     """Sends a 401 response that enables basic auth"""
     return Response(
     'Could not verify your access level for that URL.\n'
@@ -133,6 +133,7 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     try:
         content = list(ftp.mlsd(path=str(directory), facts=["type"]))
     except ftplib.all_errors as e:
+        ftp.quit()
         return handle_exception(e)
 
     ftp.quit()
@@ -174,10 +175,12 @@ def create_directory():
     try:
         ftp.cwd(str(parent))
     except ftplib.all_errors as e:
+        ftp.quit()
         return handle_exception(f"Fehler: {e}")
     
     new = parent / name
     if new == parent:
+        ftp.quit()
         return handle_exception(f"Fehler: Neuer Ordner gleicht Elternordner: {new}")
     ftp.mkd(str(new))
     logging.debug("created directory " + str(new))
@@ -217,6 +220,7 @@ def upload_files():
     try:
         ftp.cwd(str(directory))
     except ftplib.all_errors as e:
+        ftp.quit()
         return handle_exception(f"Fehler: {e}", status=400)
 
     errors = []
