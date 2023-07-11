@@ -1,9 +1,10 @@
+import string
 from functools import wraps
 from ftplib import FTP
 import ftplib
 import tempfile
 import logging
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 import pathlib
 
 from flask import Flask, render_template, request, Response
@@ -13,7 +14,8 @@ from werkzeug.datastructures.file_storage import FileStorage
 from secret import FTP_HOST, FTP_PORT
 
 
-TEMPLATE_DIR_NAME = "Template"
+TEMPLATE_DIR = pathlib.Path("/Template")
+TEMPLATE_DIR_NAME = TEMPLATE_DIR.name
 
 app = Flask(__name__)
 app.jinja_env.add_extension("jinja2.ext.loopcontrols")
@@ -44,7 +46,7 @@ def check_auth(username: str, password: str) -> bool:
         return True
 
 
-def authenticate():
+def authenticate() -> Response:
     """Sends a 401 response that enables basic auth"""
     return Response(
     'Could not verify your access level for that URL.\n'
@@ -91,26 +93,27 @@ def upload_file(ftp: FTP, filepath: pathlib.Path):
 def index():
     return view_directory()
 
-def sort_directory_entries(entry):
 
-    type = entry[1]["type"]
+def sort_directory_entries(entry: Tuple[str, Dict[str, str]]):
+    """Key function to sort a directory entry as returned by ftp.mlsd."""
+    name, facts = entry
+    order = {"pdir": 1, "dir": 2}
+    return order.get(facts["type"], 3), name
 
-    if type == "pdir":
-        return 0, entry[0]
-    elif type == "dir":
-        return 1, entry[0]
-    else:
-        return 2, entry[0]
-    
+
 def handle_exception(e, status=400):
     logging.info("Sent error message to user: " + str(e))
     return render_template("Error.html", msg=str(e)), status
 
 
-def process_name(name):
+def normalize_filename(name: str) -> str:
+    """Normalize a file/folder name before creating it on the ftp."""
+    # strips exploitable characters and convert the name to ASCII
     name = secure_filename(name)
-    name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    # replace all ASCII whitespace by _
+    name.replace(string.whitespace, "_")
     return name
+
 
 @app.route('/view')
 @app.route('/view/')
@@ -130,16 +133,15 @@ def view_directory(directory: str = "", errors: List[Tuple[str, str, str]] = Non
     try:
         content = list(ftp.mlsd(path=str(directory), facts=["type"]))
     except ftplib.all_errors as e:
+        ftp.quit()
         return handle_exception(e)
-    
+
     ftp.quit()
 
     # Sort and filter entries
     content = sorted(content, key=sort_directory_entries)
     if directory == "/":
-        content = [c for c in content if c[0] != TEMPLATE_DIR_NAME]
-    
-
+        content = [(name, facts) for name, facts in content if name != TEMPLATE_DIR_NAME]
 
     parent = directory.parent
     # guess the connected event from the auth username
@@ -163,7 +165,9 @@ def create_directory():
     
     # create a pseudo absolute path to utilize pathlib
     parent = pathlib.Path(request.values["parent"])
-    name = process_name(request.values["directory_name"])
+    if not parent.is_absolute():
+        return handle_exception('Pfad des Elternordners muss absolut sein.')
+    name = normalize_filename(request.values["directory_name"])
 
     ftp = get_ftp_connection()
 
@@ -171,10 +175,12 @@ def create_directory():
     try:
         ftp.cwd(str(parent))
     except ftplib.all_errors as e:
+        ftp.quit()
         return handle_exception(f"Fehler: {e}")
     
     new = parent / name
     if new == parent:
+        ftp.quit()
         return handle_exception(f"Fehler: Neuer Ordner gleicht Elternordner: {new}")
     ftp.mkd(str(new))
     logging.debug("created directory " + str(new))
@@ -182,14 +188,11 @@ def create_directory():
     if request.values["parent"] == "/":
         try:
             # Creating a folder at top-level -> clone template folder
-
-            template_subdirs = ftp.mlsd(TEMPLATE_DIR_NAME, facts=["type"])
-            template_subdirs = [dir 
-                                for dir, facts in template_subdirs 
-                                if (dir not in [".", ".."] and facts["type"] == "dir")]
-
-            for s in template_subdirs:
-                ftp.mkd(str(new / s))
+            subdir_names = [
+                subdir_name for subdir_name, facts in ftp.mlsd(str(TEMPLATE_DIR), facts=["type"])
+                if subdir_name not in [".", ".."] and facts["type"] == "dir"]
+            for subdir_name in subdir_names:
+                ftp.mkd(str(new / subdir_name))
         except Exception as e:
             # do not bother the user when the template folder does not exist, just don't clone it
             logging.error(f"failed to clone template: {e.__class__}: {e}")
@@ -217,6 +220,7 @@ def upload_files():
     try:
         ftp.cwd(str(directory))
     except ftplib.all_errors as e:
+        ftp.quit()
         return handle_exception(f"Fehler: {e}", status=400)
 
     errors = []
